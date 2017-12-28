@@ -48,12 +48,13 @@ type apiLoggingMiddlewareWithVars struct {
 // but includes the vars map[string]string parameter to support some of our RESTful
 // server code.
 func NewAPILoggingMiddlewareWithVars(opt ...Option) middleware.MiddlewareWithVars {
-	return &apiLoggingMiddlewareWithVars{NewAPILoggingMiddleware(opt)}
+	wrapped := NewAPILoggingMiddleware(opt...).(*apiLoggingMiddleware)
+	return &apiLoggingMiddlewareWithVars{wrapped}
 }
 
 func (l *apiLoggingMiddlewareWithVars) WrapHandler(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-		return logAndExecute(ctx, w, r, l.getLogger, func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+		return logAndExecute(ctx, w, r, l.options.loggerFactory, func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 			return handler(ctx, w, r, map[string]string{})
 		})
 	}
