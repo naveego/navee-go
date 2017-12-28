@@ -5,10 +5,12 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/naveego/navee-go/api/middleware"
 	"github.com/naveego/navee-go/logging"
+	"github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -56,10 +58,14 @@ func logAndExecute(ctx context.Context,
 	tenantFunc func(ctx context.Context) string,
 	handler func(ctx context.Context, w http.ResponseWriter, r *http.Request) error) error {
 
+	// Create the logger entry with correlation id
+	logger := logrus.WithField("correlation_id", strings.ToLower(uuid.NewV4().String()))
+
 	start := time.Now()
 
 	loggingWriter := newLoggingResponseWriter(w)
-	err := handler(ctx, loggingWriter, r)
+	handlerCtx := logging.SetLogger(ctx, logger)
+	err := handler(handlerCtx, loggingWriter, r)
 
 	// determine the elapsed time for the call
 	elapsed := time.Since(start)
@@ -81,9 +87,6 @@ func logAndExecute(ctx context.Context,
 		requestBytesHistogram.WithLabelValues(r.Method, routePath).Observe(float64(bytesIn))
 		responseBytesHistogram.WithLabelValues(r.Method, routePath).Observe(float64(bytesOut))
 	}
-
-	// get the logger from the context
-	logger := logging.GetLogger(ctx)
 
 	// create the log entry
 	logEntry := logger.WithFields(logrus.Fields{
